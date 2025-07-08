@@ -83,20 +83,36 @@ class PianoInversionsTrainer {
         const startOctave = 3;
         const endOctave = 6;
         
+        // First, create all white keys
         for (let octave = startOctave; octave <= endOctave; octave++) {
-            const notes = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
-            const blackKeys = ['C#', 'D#', null, 'F#', 'G#', 'A#'];
+            const whiteNotes = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
             
-            notes.forEach((note, index) => {
-                // Create white key
+            whiteNotes.forEach((note) => {
                 const whiteKey = this.createKey(note, octave, 'white');
                 this.piano.appendChild(whiteKey);
-                
-                // Create black key if it exists
-                if (index < blackKeys.length && blackKeys[index]) {
-                    const blackKey = this.createKey(blackKeys[index], octave, 'black');
-                    whiteKey.appendChild(blackKey);
-                }
+            });
+        }
+        
+        // Then, create black keys with proper positioning
+        for (let octave = startOctave; octave <= endOctave; octave++) {
+            // Black keys pattern: C# D# (gap) F# G# A#
+            const blackKeyData = [
+                { note: 'C#', position: 0 },
+                { note: 'D#', position: 1 },
+                { note: 'F#', position: 3 },
+                { note: 'G#', position: 4 },
+                { note: 'A#', position: 5 }
+            ];
+            
+            blackKeyData.forEach(({ note, position }) => {
+                const blackKey = this.createKey(note, octave, 'black');
+                // Calculate position based on octave and key position
+                const octaveOffset = (octave - startOctave) * 7;
+                const keyPosition = octaveOffset + position;
+                // Position between white keys (40px width per white key)
+                // Shift 27.5px from the start of the white key (40px - 12.5px for half black key width)
+                blackKey.style.left = `${(keyPosition + 1) * 40 - 12.5 + 5}px`;
+                this.piano.appendChild(blackKey);
             });
         }
     }

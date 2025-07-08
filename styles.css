@@ -151,9 +151,10 @@ h1 {
 #piano {
     display: flex;
     justify-content: center;
-    min-width: 800px;
+    min-width: 1120px; /* 28 white keys * 40px */
     position: relative;
     height: 200px;
+    margin: 0 auto;
 }
 
 .key {
@@ -183,9 +184,9 @@ h1 {
     height: 120px;
     background-color: #222;
     position: absolute;
+    top: 0;
     z-index: 2;
     border-radius: 0 0 3px 3px;
-    margin-left: -12.5px;
 }
 
 .black-key:hover {
