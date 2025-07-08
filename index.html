@@ -64,23 +64,11 @@
             </div>
             
             <div class="control-group">
-                <label for="show-fingering">
-                    <input type="checkbox" id="show-fingering" checked>
-                    Show Fingering
-                </label>
-            </div>
-            
-            <div class="control-group">
                 <label for="volume-slider">Volume:</label>
                 <input type="range" id="volume-slider" min="0" max="100" value="70">
                 <span id="volume-display">70%</span>
             </div>
             
-            <div class="control-buttons">
-                <button id="play-btn">Play</button>
-                <button id="pause-btn">Pause</button>
-                <button id="reset-btn">Reset</button>
-            </div>
         </div>
         
         <div class="status-display">
@@ -91,6 +79,33 @@
         
         <div class="piano-container">
             <div id="piano"></div>
+        </div>
+        
+        <div class="playback-controls">
+            <div class="controls-left">
+                <button id="play-pause-btn" class="control-btn play">
+                    <svg class="play-icon" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M8 5v14l11-7z"/>
+                    </svg>
+                    <svg class="pause-icon" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" style="display: none;">
+                        <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"/>
+                    </svg>
+                </button>
+                <button id="restart-btn" class="control-btn">
+                    <svg width="20" height="20" viewBox="0 0 64 64" fill="currentColor">
+                        <path d="m31.979 57.995c-4.419 0-8.849-1.254-12.693-3.797-8.426-5.572-12.263-16.222-9.331-25.9.32-1.057 1.437-1.655 2.494-1.334 1.057.32 1.654 1.437 1.334 2.494-2.423 7.998.748 16.799 7.709 21.403 7.033 4.651 16.434 4.082 22.865-1.383 6.349-5.396 8.441-14.819 4.974-22.405-3.661-8.012-12.575-12.528-21.193-10.738-3.627.753-7.059 2.616-9.663 5.248-.777.785-2.043.792-2.828.015s-.792-2.043-.015-2.828c3.152-3.185 7.305-5.44 11.693-6.351 10.432-2.161 21.215 3.298 25.645 12.992 4.263 9.328 1.787 20.479-6.021 27.116-4.266 3.623-9.611 5.468-14.97 5.468z"/>
+                        <path d="m17.054 22.177c-.171 0-.346-.022-.519-.069-1.067-.286-1.7-1.382-1.414-2.449l3.256-12.154c.286-1.067 1.382-1.704 2.449-1.414 1.067.286 1.7 1.382 1.414 2.449l-3.256 12.154c-.239.893-1.047 1.483-1.93 1.483z"/>
+                        <path d="m29.208 25.435c-.172 0-.346-.022-.519-.069l-12.154-3.258c-1.067-.286-1.7-1.382-1.414-2.449s1.388-1.701 2.449-1.414l12.154 3.258c1.067.286 1.7 1.382 1.414 2.449-.239.893-1.047 1.483-1.93 1.483z"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="controls-right">
+                <label class="toggle-label">
+                    <input type="checkbox" id="show-fingering" class="toggle-input" checked>
+                    <span class="toggle-slider"></span>
+                    <span class="toggle-text">Show Fingering</span>
+                </label>
+            </div>
         </div>
     </div>
     

@@ -145,9 +145,40 @@ class PianoInversionsTrainer {
     }
     
     attachEventListeners() {
-        document.getElementById('play-btn').addEventListener('click', () => this.play());
-        document.getElementById('pause-btn').addEventListener('click', () => this.pause());
-        document.getElementById('reset-btn').addEventListener('click', () => this.reset());
+        // Play/Pause toggle button
+        const playPauseBtn = document.getElementById('play-pause-btn');
+        playPauseBtn.addEventListener('click', () => {
+            if (this.isPlaying) {
+                this.pause();
+                playPauseBtn.classList.remove('playing');
+                playPauseBtn.querySelector('.play-icon').style.display = 'block';
+                playPauseBtn.querySelector('.pause-icon').style.display = 'none';
+            } else {
+                this.play();
+                playPauseBtn.classList.add('playing');
+                playPauseBtn.querySelector('.play-icon').style.display = 'none';
+                playPauseBtn.querySelector('.pause-icon').style.display = 'block';
+            }
+        });
+        
+        // Restart button - reset and start playing from beginning
+        document.getElementById('restart-btn').addEventListener('click', () => {
+            const playPauseBtn = document.getElementById('play-pause-btn');
+            
+            // Reset to beginning
+            this.pause();
+            this.currentInversionIndex = 0;
+            this.currentDirection = 'up';
+            this.clearHighlights();
+            
+            // Start playing again
+            this.play();
+            
+            // Update button state to show pause icon
+            playPauseBtn.classList.add('playing');
+            playPauseBtn.querySelector('.play-icon').style.display = 'none';
+            playPauseBtn.querySelector('.pause-icon').style.display = 'block';
+        });
         
         // Update when settings change
         const controls = ['chord-select', 'hand-select', 'octave-range', 'direction-select'];
