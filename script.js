@@ -45,18 +45,144 @@ class PianoInversionsTrainer {
         this.currentInversionIndex = 0;
         this.inversions = [];
         this.metronomeInterval = null;
-        this.direction = 'up';
+        this.direction = 'up-down';
         this.currentDirection = 'up';
         this.sampler = null;
         this.isAudioReady = false;
         this.metronomeSynth = null;
         this.subdivisionInterval = null;
         this.currentSubdivision = 0;
+        this.chordTempos = this.loadChordTempos();
+        
+        // Practice timer variables
+        this.practiceStartTime = null;
+        this.practiceElapsedTime = 0;
+        this.practiceTimerInterval = null;
+        this.totalPracticeTime = this.loadTotalPracticeTime();
         
         this.initializeAudio();
         this.initializePiano();
         this.attachEventListeners();
         this.updateDisplay();
+        this.updateChordDropdownDisplay();
+        
+        // Load saved tempo for initial chord and hand
+        const initialChord = document.getElementById('chord-select').value;
+        const initialHand = document.getElementById('hand-select').value;
+        const savedTempo = this.getChordTempo(initialChord, initialHand);
+        document.getElementById('tempo-input').value = savedTempo;
+        
+        // Update hand dropdown display
+        this.updateHandDropdownDisplay();
+        
+        // Ensure dropdowns show clean text initially
+        document.getElementById('chord-select').blur();
+        document.getElementById('hand-select').blur();
+        
+        // Initialize timer display
+        this.updatePracticeTimerDisplay();
+    }
+    
+    loadChordTempos() {
+        const saved = localStorage.getItem('chordHandTempos');
+        return saved ? JSON.parse(saved) : {};
+    }
+    
+    loadTotalPracticeTime() {
+        const saved = localStorage.getItem('totalPracticeTime');
+        return saved ? parseInt(saved) : 0;
+    }
+    
+    saveTotalPracticeTime() {
+        localStorage.setItem('totalPracticeTime', this.totalPracticeTime.toString());
+    }
+    
+    updatePracticeTimerDisplay() {
+        const totalSeconds = Math.floor((this.practiceElapsedTime + this.totalPracticeTime) / 1000);
+        const minutes = Math.floor(totalSeconds / 60);
+        const seconds = totalSeconds % 60;
+        const display = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        document.getElementById('practice-timer-display').textContent = display;
+    }
+    
+    startPracticeTimer() {
+        if (!this.practiceStartTime) {
+            this.practiceStartTime = Date.now();
+            this.practiceTimerInterval = setInterval(() => {
+                this.practiceElapsedTime = Date.now() - this.practiceStartTime;
+                this.updatePracticeTimerDisplay();
+            }, 1000);
+        }
+    }
+    
+    stopPracticeTimer() {
+        if (this.practiceStartTime) {
+            this.practiceElapsedTime = Date.now() - this.practiceStartTime;
+            this.totalPracticeTime += this.practiceElapsedTime;
+            this.saveTotalPracticeTime();
+            clearInterval(this.practiceTimerInterval);
+            this.practiceStartTime = null;
+            this.practiceElapsedTime = 0;
+            this.updatePracticeTimerDisplay();
+        }
+    }
+    
+    saveChordTempo(chord, hand, tempo) {
+        const key = `${chord}-${hand}`;
+        this.chordTempos[key] = tempo;
+        localStorage.setItem('chordHandTempos', JSON.stringify(this.chordTempos));
+        this.updateChordDropdownDisplay();
+        this.updateHandDropdownDisplay();
+    }
+    
+    getChordTempo(chord, hand) {
+        const key = `${chord}-${hand}`;
+        return this.chordTempos[key] || 20; // Default tempo is 20
+    }
+    
+    updateChordDropdownDisplay() {
+        const chordSelect = document.getElementById('chord-select');
+        const options = chordSelect.options;
+        
+        for (let i = 0; i < options.length; i++) {
+            const chord = options[i].value;
+            // Get original chord name from data attribute or parse from value
+            const isMinor = chord.includes('m') && chord.length === 2;
+            const chordName = isMinor ? `${chord.replace('m', '')} Minor` : `${chord} Major`;
+            
+            // Store both clean and detailed versions
+            options[i].textContent = chordName;
+            options[i].setAttribute('data-clean-text', chordName);
+            
+            const leftTempo = this.getChordTempo(chord, 'left');
+            const rightTempo = this.getChordTempo(chord, 'right');
+            const leftDisplay = leftTempo === 20 ? '--' : leftTempo.toString().padStart(3);
+            const rightDisplay = rightTempo === 20 ? '--' : rightTempo.toString().padStart(3);
+            const paddedChordName = chordName.padEnd(10);
+            options[i].setAttribute('data-tempo-text', `${paddedChordName} L:${leftDisplay} R:${rightDisplay}`);
+        }
+    }
+    
+    updateHandDropdownDisplay() {
+        const handSelect = document.getElementById('hand-select');
+        const currentChord = document.getElementById('chord-select').value;
+        const options = handSelect.options;
+        
+        for (let i = 0; i < options.length; i++) {
+            const hand = options[i].value;
+            const handName = hand === 'right' ? 'Right Hand' : 'Left Hand';
+            
+            // Store both clean and detailed versions
+            options[i].textContent = handName;
+            options[i].setAttribute('data-clean-text', handName);
+            
+            const tempo = this.getChordTempo(currentChord, hand);
+            if (tempo !== 20) {
+                options[i].setAttribute('data-tempo-text', `${handName} • ${tempo} BPM`);
+            } else {
+                options[i].setAttribute('data-tempo-text', handName);
+            }
+        }
     }
     
     async initializeAudio() {
@@ -78,7 +204,6 @@ class PianoInversionsTrainer {
         
         // Set initial volume
         this.sampler.volume.value = -10; // Reduce volume slightly
-        this.updateVolume();
         
         // Create metronome synth for tick sounds
         this.metronomeSynth = new Tone.Synth({
@@ -200,24 +325,114 @@ class PianoInversionsTrainer {
         });
         
         // Update when settings change
-        const controls = ['chord-select', 'hand-select', 'octave-range', 'direction-select'];
-        controls.forEach(id => {
-            document.getElementById(id).addEventListener('change', () => {
-                this.reset();
-                this.updateDisplay();
-            });
+        document.getElementById('octave-range').addEventListener('change', () => {
+            this.reset();
+            this.updateDisplay();
+        });
+        
+        // Special handling for chord selection to load saved tempo
+        const chordSelect = document.getElementById('chord-select');
+        chordSelect.addEventListener('change', () => {
+            const selectedChord = chordSelect.value;
+            const selectedHand = document.getElementById('hand-select').value;
+            const savedTempo = this.getChordTempo(selectedChord, selectedHand);
+            document.getElementById('tempo-input').value = savedTempo;
+            
+            this.updateHandDropdownDisplay();
+            this.reset();
+            this.updateDisplay();
+        });
+        
+        // Show tempo info when chord dropdown is clicked
+        const showChordTempos = () => {
+            const options = chordSelect.options;
+            for (let i = 0; i < options.length; i++) {
+                const tempoText = options[i].getAttribute('data-tempo-text');
+                if (tempoText) {
+                    options[i].textContent = tempoText;
+                }
+            }
+        };
+        
+        chordSelect.addEventListener('mousedown', showChordTempos);
+        chordSelect.addEventListener('touchstart', showChordTempos);
+        
+        // Hide tempo info when chord dropdown loses focus
+        chordSelect.addEventListener('change', () => {
+            setTimeout(() => {
+                const options = chordSelect.options;
+                for (let i = 0; i < options.length; i++) {
+                    const cleanText = options[i].getAttribute('data-clean-text');
+                    if (cleanText) {
+                        options[i].textContent = cleanText;
+                    }
+                }
+            }, 100);
+        });
+        
+        chordSelect.addEventListener('blur', () => {
+            const options = chordSelect.options;
+            for (let i = 0; i < options.length; i++) {
+                const cleanText = options[i].getAttribute('data-clean-text');
+                if (cleanText) {
+                    options[i].textContent = cleanText;
+                }
+            }
+        });
+        
+        // Special handling for hand selection to load saved tempo
+        const handSelect = document.getElementById('hand-select');
+        handSelect.addEventListener('change', () => {
+            const selectedChord = document.getElementById('chord-select').value;
+            const selectedHand = handSelect.value;
+            const savedTempo = this.getChordTempo(selectedChord, selectedHand);
+            document.getElementById('tempo-input').value = savedTempo;
+            
+            this.reset();
+            this.updateDisplay();
+        });
+        
+        // Show tempo info when hand dropdown is clicked
+        const showHandTempos = () => {
+            const options = handSelect.options;
+            for (let i = 0; i < options.length; i++) {
+                const tempoText = options[i].getAttribute('data-tempo-text');
+                if (tempoText) {
+                    options[i].textContent = tempoText;
+                }
+            }
+        };
+        
+        handSelect.addEventListener('mousedown', showHandTempos);
+        handSelect.addEventListener('touchstart', showHandTempos);
+        
+        // Hide tempo info when hand dropdown changes or loses focus
+        handSelect.addEventListener('change', () => {
+            setTimeout(() => {
+                const options = handSelect.options;
+                for (let i = 0; i < options.length; i++) {
+                    const cleanText = options[i].getAttribute('data-clean-text');
+                    if (cleanText) {
+                        options[i].textContent = cleanText;
+                    }
+                }
+            }, 100);
+        });
+        
+        handSelect.addEventListener('blur', () => {
+            const options = handSelect.options;
+            for (let i = 0; i < options.length; i++) {
+                const cleanText = options[i].getAttribute('data-clean-text');
+                if (cleanText) {
+                    options[i].textContent = cleanText;
+                }
+            }
         });
         
         document.getElementById('show-fingering').addEventListener('change', () => {
             this.updateDisplay();
         });
         
-        // Volume control
-        const volumeSlider = document.getElementById('volume-slider');
-        volumeSlider.addEventListener('input', () => {
-            this.updateVolume();
-            document.getElementById('volume-display').textContent = volumeSlider.value + '%';
-        });
         
         // Tempo controls
         const tempoInput = document.getElementById('tempo-input');
@@ -236,6 +451,10 @@ class PianoInversionsTrainer {
             
             if (newTempo >= minTempo && newTempo <= maxTempo) {
                 tempoInput.value = newTempo;
+                // Save tempo for current chord and hand
+                const currentChord = document.getElementById('chord-select').value;
+                const currentHand = document.getElementById('hand-select').value;
+                this.saveChordTempo(currentChord, currentHand, newTempo);
                 // If playing, update the interval without restarting
                 if (this.isPlaying) {
                     const subdivisions = parseInt(document.getElementById('subdivision-select').value);
@@ -359,6 +578,11 @@ class PianoInversionsTrainer {
             
             tempoInput.value = newTempo;
             
+            // Save tempo for current chord and hand
+            const currentChord = document.getElementById('chord-select').value;
+            const currentHand = document.getElementById('hand-select').value;
+            this.saveChordTempo(currentChord, currentHand, newTempo);
+            
             // If playing, update the interval
             if (this.isPlaying) {
                 const subdivisions = parseInt(document.getElementById('subdivision-select').value);
@@ -459,13 +683,6 @@ class PianoInversionsTrainer {
         });
     }
     
-    updateVolume() {
-        if (this.sampler) {
-            const volume = parseInt(document.getElementById('volume-slider').value);
-            // Convert percentage to decibels (-60 to 0)
-            this.sampler.volume.value = (volume / 100) * 30 - 30;
-        }
-    }
     
     play() {
         if (this.isPlaying) return;
@@ -473,6 +690,7 @@ class PianoInversionsTrainer {
         this.isPlaying = true;
         this.generateInversions();
         this.currentSubdivision = 0;
+        this.startPracticeTimer();
         
         const bpm = parseInt(document.getElementById('tempo-input').value);
         const beatInterval = 60000 / bpm; // Convert BPM to milliseconds
@@ -515,6 +733,7 @@ class PianoInversionsTrainer {
     
     pause() {
         this.isPlaying = false;
+        this.stopPracticeTimer();
         if (this.metronomeInterval) {
             clearInterval(this.metronomeInterval);
             this.metronomeInterval = null;
@@ -539,7 +758,7 @@ class PianoInversionsTrainer {
         this.inversions = [];
         const chordSelect = document.getElementById('chord-select').value;
         const octaveRange = parseInt(document.getElementById('octave-range').value);
-        const direction = document.getElementById('direction-select').value;
+        const direction = 'up-down';
         
         // Parse chord info
         const isMinor = chordSelect.includes('m');
@@ -599,31 +818,18 @@ class PianoInversionsTrainer {
     }
     
     nextInversion() {
-        const direction = document.getElementById('direction-select').value;
-        
-        if (direction === 'up') {
+        // Always use up-down pattern
+        if (this.currentDirection === 'up') {
             this.currentInversionIndex++;
             if (this.currentInversionIndex >= this.inversions.length) {
-                this.currentInversionIndex = 0;
+                this.currentInversionIndex = this.inversions.length - 2;
+                this.currentDirection = 'down';
             }
-        } else if (direction === 'down') {
+        } else {
             this.currentInversionIndex--;
             if (this.currentInversionIndex < 0) {
-                this.currentInversionIndex = this.inversions.length - 1;
-            }
-        } else if (direction === 'up-down') {
-            if (this.currentDirection === 'up') {
-                this.currentInversionIndex++;
-                if (this.currentInversionIndex >= this.inversions.length) {
-                    this.currentInversionIndex = this.inversions.length - 2;
-                    this.currentDirection = 'down';
-                }
-            } else {
-                this.currentInversionIndex--;
-                if (this.currentInversionIndex < 0) {
-                    this.currentInversionIndex = 1;
-                    this.currentDirection = 'up';
-                }
+                this.currentInversionIndex = 1;
+                this.currentDirection = 'up';
             }
         }
         
@@ -638,8 +844,8 @@ class PianoInversionsTrainer {
             const chordSelect = document.getElementById('chord-select').value;
             const isMinor = chordSelect.includes('m');
             document.getElementById('current-chord').textContent = 
-                `${chordSelect} ${isMinor ? 'Minor' : 'Major'} - Root Position`;
-            document.getElementById('current-octave').textContent = 'Octave: C3';
+                `${chordSelect} ${isMinor ? 'Minor' : 'Major'}`;
+            document.getElementById('inversion-label').style.display = 'none';
             return;
         }
         
@@ -655,20 +861,21 @@ class PianoInversionsTrainer {
             'second': 'Second Inversion'
         };
         
-        document.getElementById('current-chord').textContent = 
-            `${current.chordName} - ${positionNames[current.position]}`;
-        document.getElementById('current-octave').textContent = 
-            `Octave: C${current.octave}`;
+        document.getElementById('current-chord').textContent = current.chordName;
         
         // Highlight keys
         const showFingering = document.getElementById('show-fingering').checked;
         const hand = document.getElementById('hand-select').value;
         const fingering = fingeringPatterns[hand][current.chordType][current.position];
         
+        // Keep track of active keys for positioning the label
+        let activeKeys = [];
+        
         current.notes.forEach((midiNote, index) => {
             const key = this.piano.querySelector(`[data-midi="${midiNote}"]`);
             if (key) {
                 key.classList.add('active');
+                activeKeys.push(key);
                 
                 if (showFingering) {
                     const fingerNumber = document.createElement('div');
@@ -678,6 +885,28 @@ class PianoInversionsTrainer {
                 }
             }
         });
+        
+        // Position and show the inversion label
+        if (activeKeys.length > 0) {
+            const inversionLabel = document.getElementById('inversion-label');
+            const inversionText = document.getElementById('inversion-text');
+            
+            // Get the leftmost and rightmost active keys
+            const keyPositions = activeKeys.map(key => key.offsetLeft);
+            const leftmostPos = Math.min(...keyPositions);
+            const rightmostKey = activeKeys.find(key => key.offsetLeft === Math.max(...keyPositions));
+            const rightmostPos = rightmostKey.offsetLeft + rightmostKey.offsetWidth;
+            
+            // Set label text
+            inversionText.textContent = positionNames[current.position];
+            
+            // Position the label - account for piano centering
+            const pianoOffsetLeft = this.piano.offsetLeft;
+            
+            inversionLabel.style.left = `${leftmostPos + pianoOffsetLeft}px`;
+            inversionLabel.style.width = `${rightmostPos - leftmostPos}px`;
+            inversionLabel.style.display = 'block';
+        }
         
         // Play the chord if audio is ready
         if (this.isPlaying && this.isAudioReady) {
@@ -714,6 +943,8 @@ class PianoInversionsTrainer {
                 fingerNumber.remove();
             }
         });
+        // Hide the inversion label
+        document.getElementById('inversion-label').style.display = 'none';
     }
 }
 
