@@ -237,26 +237,41 @@ class PianoInversionsTrainer {
             if (newTempo >= minTempo && newTempo <= maxTempo) {
                 tempoInput.value = newTempo;
                 // If playing, update the interval without restarting
-                if (this.isPlaying && this.subdivisionInterval) {
-                    clearInterval(this.subdivisionInterval);
+                if (this.isPlaying) {
+                    const subdivisions = parseInt(document.getElementById('subdivision-select').value);
                     const beatInterval = 60000 / newTempo;
-                    const subdivisionInterval = beatInterval / 4;
-                    // Don't reset to 0 to avoid immediate chord change
-                    // Keep current subdivision position
                     
-                    this.subdivisionInterval = setInterval(() => {
-                        if (this.currentSubdivision === 0) {
-                            this.nextInversion();
-                            if (this.metronomeSynth) {
-                                this.metronomeSynth.triggerAttackRelease('C5', '16n');
-                            }
-                        } else {
-                            if (this.metronomeSynth) {
-                                this.metronomeSynth.triggerAttackRelease('C6', '32n');
-                            }
+                    if (subdivisions === 0) {
+                        // Clear subdivision interval if exists
+                        if (this.subdivisionInterval) {
+                            clearInterval(this.subdivisionInterval);
+                            this.subdivisionInterval = null;
                         }
-                        this.currentSubdivision = (this.currentSubdivision + 1) % 4;
-                    }, subdivisionInterval);
+                        // Use regular metronome interval
+                        if (this.metronomeInterval) {
+                            clearInterval(this.metronomeInterval);
+                        }
+                        this.metronomeInterval = setInterval(() => {
+                            this.nextInversion();
+                        }, beatInterval);
+                    } else if (this.subdivisionInterval) {
+                        clearInterval(this.subdivisionInterval);
+                        const subdivisionInterval = beatInterval / subdivisions;
+                        
+                        this.subdivisionInterval = setInterval(() => {
+                            if (this.currentSubdivision === 0) {
+                                this.nextInversion();
+                                if (this.metronomeSynth) {
+                                    this.metronomeSynth.triggerAttackRelease('C5', '16n');
+                                }
+                            } else {
+                                if (this.metronomeSynth) {
+                                    this.metronomeSynth.triggerAttackRelease('C6', '32n');
+                                }
+                            }
+                            this.currentSubdivision = (this.currentSubdivision + 1) % subdivisions;
+                        }, subdivisionInterval);
+                    }
                 }
             }
         };
@@ -345,26 +360,48 @@ class PianoInversionsTrainer {
             tempoInput.value = newTempo;
             
             // If playing, update the interval
-            if (this.isPlaying && this.subdivisionInterval) {
-                clearInterval(this.subdivisionInterval);
+            if (this.isPlaying) {
+                const subdivisions = parseInt(document.getElementById('subdivision-select').value);
                 const beatInterval = 60000 / newTempo;
-                const subdivisionInterval = beatInterval / 4;
-                // Don't reset to 0 to avoid immediate chord change
-                // Keep current subdivision position
                 
-                this.subdivisionInterval = setInterval(() => {
-                    if (this.currentSubdivision === 0) {
-                        this.nextInversion();
-                        if (this.metronomeSynth) {
-                            this.metronomeSynth.triggerAttackRelease('C5', '16n');
-                        }
-                    } else {
-                        if (this.metronomeSynth) {
-                            this.metronomeSynth.triggerAttackRelease('C6', '32n');
-                        }
+                if (subdivisions === 0) {
+                    // Clear subdivision interval if exists
+                    if (this.subdivisionInterval) {
+                        clearInterval(this.subdivisionInterval);
+                        this.subdivisionInterval = null;
                     }
-                    this.currentSubdivision = (this.currentSubdivision + 1) % 4;
-                }, subdivisionInterval);
+                    // Use regular metronome interval
+                    if (this.metronomeInterval) {
+                        clearInterval(this.metronomeInterval);
+                    }
+                    this.metronomeInterval = setInterval(() => {
+                        this.nextInversion();
+                    }, beatInterval);
+                } else {
+                    // Clear regular metronome if exists
+                    if (this.metronomeInterval) {
+                        clearInterval(this.metronomeInterval);
+                        this.metronomeInterval = null;
+                    }
+                    if (this.subdivisionInterval) {
+                        clearInterval(this.subdivisionInterval);
+                    }
+                    const subdivisionInterval = beatInterval / subdivisions;
+                    
+                    this.subdivisionInterval = setInterval(() => {
+                        if (this.currentSubdivision === 0) {
+                            this.nextInversion();
+                            if (this.metronomeSynth) {
+                                this.metronomeSynth.triggerAttackRelease('C5', '16n');
+                            }
+                        } else {
+                            if (this.metronomeSynth) {
+                                this.metronomeSynth.triggerAttackRelease('C6', '32n');
+                            }
+                        }
+                        this.currentSubdivision = (this.currentSubdivision + 1) % subdivisions;
+                    }, subdivisionInterval);
+                }
             }
         });
         
@@ -372,6 +409,52 @@ class PianoInversionsTrainer {
         tempoInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
                 tempoInput.blur(); // This will trigger the change event
+            }
+        });
+        
+        // Handle subdivision change
+        document.getElementById('subdivision-select').addEventListener('change', () => {
+            if (this.isPlaying) {
+                // Update the metronome without restarting playback
+                const tempoInput = document.getElementById('tempo-input');
+                const newTempo = parseInt(tempoInput.value);
+                const subdivisions = parseInt(document.getElementById('subdivision-select').value);
+                const beatInterval = 60000 / newTempo;
+                
+                // Clear existing intervals
+                if (this.metronomeInterval) {
+                    clearInterval(this.metronomeInterval);
+                    this.metronomeInterval = null;
+                }
+                if (this.subdivisionInterval) {
+                    clearInterval(this.subdivisionInterval);
+                    this.subdivisionInterval = null;
+                }
+                
+                if (subdivisions === 0) {
+                    // No metronome, just chord changes
+                    this.metronomeInterval = setInterval(() => {
+                        this.nextInversion();
+                    }, beatInterval);
+                } else {
+                    // Start subdivision ticker
+                    const subdivisionInterval = beatInterval / subdivisions;
+                    this.currentSubdivision = 1; // Avoid immediate chord change
+                    
+                    this.subdivisionInterval = setInterval(() => {
+                        if (this.currentSubdivision === 0) {
+                            this.nextInversion();
+                            if (this.metronomeSynth) {
+                                this.metronomeSynth.triggerAttackRelease('C5', '16n');
+                            }
+                        } else {
+                            if (this.metronomeSynth) {
+                                this.metronomeSynth.triggerAttackRelease('C6', '32n');
+                            }
+                        }
+                        this.currentSubdivision = (this.currentSubdivision + 1) % subdivisions;
+                    }, subdivisionInterval);
+                }
             }
         });
     }
@@ -393,33 +476,41 @@ class PianoInversionsTrainer {
         
         const bpm = parseInt(document.getElementById('tempo-input').value);
         const beatInterval = 60000 / bpm; // Convert BPM to milliseconds
-        const subdivisionInterval = beatInterval / 4; // 4 subdivisions per beat
+        const subdivisions = parseInt(document.getElementById('subdivision-select').value);
         
         // Show first inversion immediately
         this.updateDisplay();
         
-        // Start subdivision ticker (16th notes)
-        // Start with subdivision 1 to avoid immediate chord change
-        this.currentSubdivision = 1;
-        
-        this.subdivisionInterval = setInterval(() => {
-            if (this.currentSubdivision === 0) {
-                // Main beat - play chord
+        if (subdivisions === 0) {
+            // No metronome, just chord changes
+            this.metronomeInterval = setInterval(() => {
                 this.nextInversion();
-                // Play a slightly louder tick for the downbeat
-                if (this.metronomeSynth) {
-                    this.metronomeSynth.triggerAttackRelease('C5', '16n');
-                }
-            } else {
-                // Subdivision ticks - just play metronome
-                if (this.metronomeSynth) {
-                    this.metronomeSynth.triggerAttackRelease('C6', '32n');
-                }
-            }
+            }, beatInterval);
+        } else {
+            // Start subdivision ticker
+            const subdivisionInterval = beatInterval / subdivisions;
+            // Start with subdivision 1 to avoid immediate chord change
+            this.currentSubdivision = 1;
             
-            // Increment subdivision counter
-            this.currentSubdivision = (this.currentSubdivision + 1) % 4;
-        }, subdivisionInterval);
+            this.subdivisionInterval = setInterval(() => {
+                if (this.currentSubdivision === 0) {
+                    // Main beat - play chord
+                    this.nextInversion();
+                    // Play a slightly louder tick for the downbeat
+                    if (this.metronomeSynth) {
+                        this.metronomeSynth.triggerAttackRelease('C5', '16n');
+                    }
+                } else {
+                    // Subdivision ticks - just play metronome
+                    if (this.metronomeSynth) {
+                        this.metronomeSynth.triggerAttackRelease('C6', '32n');
+                    }
+                }
+                
+                // Increment subdivision counter
+                this.currentSubdivision = (this.currentSubdivision + 1) % subdivisions;
+            }, subdivisionInterval);
+        }
     }
     
     pause() {

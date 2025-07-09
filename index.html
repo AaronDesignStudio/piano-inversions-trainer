@@ -11,68 +11,81 @@
         <h1>Piano Inversions Trainer</h1>
         
         <div class="controls">
-            <div class="control-group">
-                <label for="chord-select">Chord:</label>
-                <select id="chord-select">
-                    <option value="C">C Major</option>
-                    <option value="D">D Major</option>
-                    <option value="E">E Major</option>
-                    <option value="F">F Major</option>
-                    <option value="G">G Major</option>
-                    <option value="A">A Major</option>
-                    <option value="B">B Major</option>
-                    <option value="Cm">C Minor</option>
-                    <option value="Dm">D Minor</option>
-                    <option value="Em">E Minor</option>
-                    <option value="Fm">F Minor</option>
-                    <option value="Gm">G Minor</option>
-                    <option value="Am">A Minor</option>
-                    <option value="Bm">B Minor</option>
-                </select>
-            </div>
-            
-            <div class="control-group">
-                <label for="hand-select">Hand:</label>
-                <select id="hand-select">
-                    <option value="right">Right Hand</option>
-                    <option value="left">Left Hand</option>
-                </select>
-            </div>
-            
-            <div class="control-group">
-                <label for="tempo-input">Tempo (BPM):</label>
-                <div class="tempo-controls">
-                    <button id="tempo-decrease" class="tempo-btn">-</button>
-                    <input type="number" id="tempo-input" min="10" max="200" value="20">
-                    <button id="tempo-increase" class="tempo-btn">+</button>
+            <div class="controls-row">
+                <div class="control-group">
+                    <label for="chord-select">Chord:</label>
+                    <select id="chord-select">
+                        <option value="C">C Major</option>
+                        <option value="D">D Major</option>
+                        <option value="E">E Major</option>
+                        <option value="F">F Major</option>
+                        <option value="G">G Major</option>
+                        <option value="A">A Major</option>
+                        <option value="B">B Major</option>
+                        <option value="Cm">C Minor</option>
+                        <option value="Dm">D Minor</option>
+                        <option value="Em">E Minor</option>
+                        <option value="Fm">F Minor</option>
+                        <option value="Gm">G Minor</option>
+                        <option value="Am">A Minor</option>
+                        <option value="Bm">B Minor</option>
+                    </select>
+                </div>
+                
+                <div class="control-group">
+                    <label for="hand-select">Hand:</label>
+                    <select id="hand-select">
+                        <option value="right">Right Hand</option>
+                        <option value="left">Left Hand</option>
+                    </select>
+                </div>
+                
+                <div class="control-group">
+                    <label for="octave-range">Octave Range:</label>
+                    <select id="octave-range">
+                        <option value="1">1 Octave</option>
+                        <option value="2">2 Octaves</option>
+                        <option value="3" selected>3 Octaves</option>
+                        <option value="4">4 Octaves</option>
+                    </select>
+                </div>
+                
+                <div class="control-group">
+                    <label for="direction-select">Direction:</label>
+                    <select id="direction-select">
+                        <option value="up">Up</option>
+                        <option value="down">Down</option>
+                        <option value="up-down" selected>Up-Down</option>
+                    </select>
+                </div>
+                
+                <div class="control-group">
+                    <label for="volume-slider">Volume:</label>
+                    <input type="range" id="volume-slider" min="0" max="100" value="70">
+                    <span id="volume-display">70%</span>
                 </div>
             </div>
             
-            <div class="control-group">
-                <label for="octave-range">Octave Range:</label>
-                <select id="octave-range">
-                    <option value="1">1 Octave</option>
-                    <option value="2">2 Octaves</option>
-                    <option value="3" selected>3 Octaves</option>
-                    <option value="4">4 Octaves</option>
-                </select>
+            <div class="controls-row tempo-metronome-row">
+                <div class="control-group">
+                    <label for="tempo-input">Tempo (BPM):</label>
+                    <div class="tempo-controls">
+                        <button id="tempo-decrease" class="tempo-btn">-</button>
+                        <input type="number" id="tempo-input" min="10" max="200" value="20">
+                        <button id="tempo-increase" class="tempo-btn">+</button>
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <label for="subdivision-select">Metronome:</label>
+                    <select id="subdivision-select">
+                        <option value="0">Off</option>
+                        <option value="2">Eighth Notes</option>
+                        <option value="3">Triplets</option>
+                        <option value="4" selected>Sixteenth Notes</option>
+                    </select>
+                </div>
             </div>
-            
-            <div class="control-group">
-                <label for="direction-select">Direction:</label>
-                <select id="direction-select">
-                    <option value="up">Up</option>
-                    <option value="down">Down</option>
-                    <option value="up-down" selected>Up-Down</option>
-                </select>
-            </div>
-            
-            <div class="control-group">
-                <label for="volume-slider">Volume:</label>
-                <input type="range" id="volume-slider" min="0" max="100" value="70">
-                <span id="volume-display">70%</span>
-            </div>
-            
         </div>
         
         <div class="status-display">
