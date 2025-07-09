@@ -49,6 +49,9 @@ class PianoInversionsTrainer {
         this.currentDirection = 'up';
         this.sampler = null;
         this.isAudioReady = false;
+        this.metronomeSynth = null;
+        this.subdivisionInterval = null;
+        this.currentSubdivision = 0;
         
         this.initializeAudio();
         this.initializePiano();
@@ -76,6 +79,22 @@ class PianoInversionsTrainer {
         // Set initial volume
         this.sampler.volume.value = -10; // Reduce volume slightly
         this.updateVolume();
+        
+        // Create metronome synth for tick sounds
+        this.metronomeSynth = new Tone.Synth({
+            oscillator: {
+                type: 'sine'
+            },
+            envelope: {
+                attack: 0.001,
+                decay: 0.1,
+                sustain: 0,
+                release: 0.1
+            }
+        }).toDestination();
+        
+        // Set metronome volume to be subtle
+        this.metronomeSynth.volume.value = -20;
     }
     
     initializePiano() {
@@ -199,6 +218,162 @@ class PianoInversionsTrainer {
             this.updateVolume();
             document.getElementById('volume-display').textContent = volumeSlider.value + '%';
         });
+        
+        // Tempo controls
+        const tempoInput = document.getElementById('tempo-input');
+        const tempoDecrease = document.getElementById('tempo-decrease');
+        const tempoIncrease = document.getElementById('tempo-increase');
+        
+        let tempoHoldInterval = null;
+        let tempoHoldTimeout = null;
+        let tempoHoldStartTime = null;
+        
+        const updateTempo = (delta) => {
+            const currentTempo = parseInt(tempoInput.value);
+            const newTempo = currentTempo + delta;
+            const minTempo = parseInt(tempoInput.min);
+            const maxTempo = parseInt(tempoInput.max);
+            
+            if (newTempo >= minTempo && newTempo <= maxTempo) {
+                tempoInput.value = newTempo;
+                // If playing, update the interval without restarting
+                if (this.isPlaying && this.subdivisionInterval) {
+                    clearInterval(this.subdivisionInterval);
+                    const beatInterval = 60000 / newTempo;
+                    const subdivisionInterval = beatInterval / 4;
+                    // Don't reset to 0 to avoid immediate chord change
+                    // Keep current subdivision position
+                    
+                    this.subdivisionInterval = setInterval(() => {
+                        if (this.currentSubdivision === 0) {
+                            this.nextInversion();
+                            if (this.metronomeSynth) {
+                                this.metronomeSynth.triggerAttackRelease('C5', '16n');
+                            }
+                        } else {
+                            if (this.metronomeSynth) {
+                                this.metronomeSynth.triggerAttackRelease('C6', '32n');
+                            }
+                        }
+                        this.currentSubdivision = (this.currentSubdivision + 1) % 4;
+                    }, subdivisionInterval);
+                }
+            }
+        };
+        
+        const startTempoHold = (direction) => {
+            // Initial single increment
+            updateTempo(direction);
+            
+            tempoHoldStartTime = Date.now();
+            
+            // Start slow repeat after 500ms
+            tempoHoldTimeout = setTimeout(() => {
+                tempoHoldInterval = setInterval(() => {
+                    const holdDuration = Date.now() - tempoHoldStartTime;
+                    
+                    // Accelerate based on hold duration
+                    let increment = 1;
+                    if (holdDuration > 3000) {
+                        // After 3 seconds, increase by 5
+                        increment = 5;
+                    }
+                    
+                    updateTempo(direction * increment);
+                }, 100); // Update every 100ms
+            }, 500);
+        };
+        
+        const stopTempoHold = () => {
+            if (tempoHoldTimeout) {
+                clearTimeout(tempoHoldTimeout);
+                tempoHoldTimeout = null;
+            }
+            if (tempoHoldInterval) {
+                clearInterval(tempoHoldInterval);
+                tempoHoldInterval = null;
+            }
+            tempoHoldStartTime = null;
+        };
+        
+        // Decrease button handlers
+        tempoDecrease.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            startTempoHold(-1);
+        });
+        
+        tempoDecrease.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            startTempoHold(-1);
+        });
+        
+        // Increase button handlers
+        tempoIncrease.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            startTempoHold(1);
+        });
+        
+        tempoIncrease.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            startTempoHold(1);
+        });
+        
+        // Stop handlers for both buttons
+        ['mouseup', 'mouseleave', 'touchend', 'touchcancel'].forEach(event => {
+            tempoDecrease.addEventListener(event, stopTempoHold);
+            tempoIncrease.addEventListener(event, stopTempoHold);
+        });
+        
+        // Global mouseup to handle when mouse is released outside button
+        document.addEventListener('mouseup', stopTempoHold);
+        
+        // Handle manual tempo input changes
+        tempoInput.addEventListener('change', () => {
+            // Validate and clamp the value
+            let newTempo = parseInt(tempoInput.value);
+            const minTempo = parseInt(tempoInput.min);
+            const maxTempo = parseInt(tempoInput.max);
+            
+            if (isNaN(newTempo)) {
+                newTempo = 20; // Default value
+            } else if (newTempo < minTempo) {
+                newTempo = minTempo;
+            } else if (newTempo > maxTempo) {
+                newTempo = maxTempo;
+            }
+            
+            tempoInput.value = newTempo;
+            
+            // If playing, update the interval
+            if (this.isPlaying && this.subdivisionInterval) {
+                clearInterval(this.subdivisionInterval);
+                const beatInterval = 60000 / newTempo;
+                const subdivisionInterval = beatInterval / 4;
+                // Don't reset to 0 to avoid immediate chord change
+                // Keep current subdivision position
+                
+                this.subdivisionInterval = setInterval(() => {
+                    if (this.currentSubdivision === 0) {
+                        this.nextInversion();
+                        if (this.metronomeSynth) {
+                            this.metronomeSynth.triggerAttackRelease('C5', '16n');
+                        }
+                    } else {
+                        if (this.metronomeSynth) {
+                            this.metronomeSynth.triggerAttackRelease('C6', '32n');
+                        }
+                    }
+                    this.currentSubdivision = (this.currentSubdivision + 1) % 4;
+                }, subdivisionInterval);
+            }
+        });
+        
+        // Also handle when pressing Enter
+        tempoInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                tempoInput.blur(); // This will trigger the change event
+            }
+        });
     }
     
     updateVolume() {
@@ -214,17 +389,37 @@ class PianoInversionsTrainer {
         
         this.isPlaying = true;
         this.generateInversions();
+        this.currentSubdivision = 0;
         
         const bpm = parseInt(document.getElementById('tempo-input').value);
-        const interval = 60000 / bpm; // Convert BPM to milliseconds
-        
-        // Start metronome
-        this.metronomeInterval = setInterval(() => {
-            this.nextInversion();
-        }, interval);
+        const beatInterval = 60000 / bpm; // Convert BPM to milliseconds
+        const subdivisionInterval = beatInterval / 4; // 4 subdivisions per beat
         
         // Show first inversion immediately
         this.updateDisplay();
+        
+        // Start subdivision ticker (16th notes)
+        // Start with subdivision 1 to avoid immediate chord change
+        this.currentSubdivision = 1;
+        
+        this.subdivisionInterval = setInterval(() => {
+            if (this.currentSubdivision === 0) {
+                // Main beat - play chord
+                this.nextInversion();
+                // Play a slightly louder tick for the downbeat
+                if (this.metronomeSynth) {
+                    this.metronomeSynth.triggerAttackRelease('C5', '16n');
+                }
+            } else {
+                // Subdivision ticks - just play metronome
+                if (this.metronomeSynth) {
+                    this.metronomeSynth.triggerAttackRelease('C6', '32n');
+                }
+            }
+            
+            // Increment subdivision counter
+            this.currentSubdivision = (this.currentSubdivision + 1) % 4;
+        }, subdivisionInterval);
     }
     
     pause() {
@@ -233,6 +428,11 @@ class PianoInversionsTrainer {
             clearInterval(this.metronomeInterval);
             this.metronomeInterval = null;
         }
+        if (this.subdivisionInterval) {
+            clearInterval(this.subdivisionInterval);
+            this.subdivisionInterval = null;
+        }
+        this.currentSubdivision = 0;
     }
     
     reset() {
