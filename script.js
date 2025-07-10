@@ -59,6 +59,8 @@ class PianoInversionsTrainer {
         this.practiceElapsedTime = 0;
         this.practiceTimerInterval = null;
         this.totalPracticeTime = this.loadTotalPracticeTime();
+        this.lastCheckedDate = new Date().toDateString();
+        this.midnightCheckInterval = null;
         
         this.initializeAudio();
         this.initializePiano();
@@ -81,6 +83,9 @@ class PianoInversionsTrainer {
         
         // Initialize timer display
         this.updatePracticeTimerDisplay();
+        
+        // Start checking for midnight
+        this.startMidnightCheck();
     }
     
     loadChordTempos() {
@@ -89,11 +94,25 @@ class PianoInversionsTrainer {
     }
     
     loadTotalPracticeTime() {
+        // Check if we need to reset based on date
+        const lastPracticeDate = localStorage.getItem('lastPracticeDate');
+        const today = new Date().toDateString();
+        
+        if (lastPracticeDate !== today) {
+            // It's a new day, reset the practice time
+            localStorage.setItem('lastPracticeDate', today);
+            localStorage.setItem('totalPracticeTime', '0');
+            return 0;
+        }
+        
         const saved = localStorage.getItem('totalPracticeTime');
         return saved ? parseInt(saved) : 0;
     }
     
     saveTotalPracticeTime() {
+        // Always save the current date when saving practice time
+        const today = new Date().toDateString();
+        localStorage.setItem('lastPracticeDate', today);
         localStorage.setItem('totalPracticeTime', this.totalPracticeTime.toString());
     }
     
@@ -103,6 +122,38 @@ class PianoInversionsTrainer {
         const seconds = totalSeconds % 60;
         const display = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
         document.getElementById('practice-timer-display').textContent = display;
+    }
+    
+    startMidnightCheck() {
+        // Check every minute for date change
+        this.midnightCheckInterval = setInterval(() => {
+            const currentDate = new Date().toDateString();
+            if (currentDate !== this.lastCheckedDate) {
+                // It's a new day!
+                this.handleMidnightReset();
+                this.lastCheckedDate = currentDate;
+            }
+        }, 60000); // Check every minute
+    }
+    
+    handleMidnightReset() {
+        // If we're currently practicing, save the current session
+        if (this.practiceStartTime) {
+            this.stopPracticeTimer();
+        }
+        
+        // Reset the total practice time for the new day
+        this.totalPracticeTime = 0;
+        localStorage.setItem('totalPracticeTime', '0');
+        localStorage.setItem('lastPracticeDate', new Date().toDateString());
+        
+        // Update the display
+        this.updatePracticeTimerDisplay();
+        
+        // If we were practicing, restart the timer for the new day
+        if (this.isPlaying) {
+            this.startPracticeTimer();
+        }
     }
     
     startPracticeTimer() {
@@ -843,8 +894,10 @@ class PianoInversionsTrainer {
             // Show default state
             const chordSelect = document.getElementById('chord-select').value;
             const isMinor = chordSelect.includes('m');
+            const hand = document.getElementById('hand-select').value;
+            const handText = hand === 'right' ? 'Right Hand' : 'Left Hand';
             document.getElementById('current-chord').textContent = 
-                `${chordSelect} ${isMinor ? 'Minor' : 'Major'}`;
+                `${chordSelect} ${isMinor ? 'Minor' : 'Major'} - ${handText}`;
             document.getElementById('inversion-label').style.display = 'none';
             return;
         }
@@ -861,11 +914,15 @@ class PianoInversionsTrainer {
             'second': 'Second Inversion'
         };
         
-        document.getElementById('current-chord').textContent = current.chordName;
+        // Get the current hand
+        const hand = document.getElementById('hand-select').value;
+        const handText = hand === 'right' ? 'Right Hand' : 'Left Hand';
+        
+        // Update chord display with hand information
+        document.getElementById('current-chord').textContent = `${current.chordName} - ${handText}`;
         
         // Highlight keys
         const showFingering = document.getElementById('show-fingering').checked;
-        const hand = document.getElementById('hand-select').value;
         const fingering = fingeringPatterns[hand][current.chordType][current.position];
         
         // Keep track of active keys for positioning the label
